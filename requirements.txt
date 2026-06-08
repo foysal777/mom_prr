@@ -1,0 +1,14 @@
+python-dotenv
+django
+django-cleanup
+djangorestframework
+djangorestframework-simplejwt
+pillow
+httpx
+drf-spectacular
+django-cors-headers
+django-filter
+gunicorn
+redis
+stripe
+firebase-admin

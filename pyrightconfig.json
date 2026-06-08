@@ -1,0 +1,15 @@
+{
+    "venvPath": ".",
+    "venv": ".venv",
+    "pythonVersion": "3.11",
+    "include": ["*"],
+    "exclude": [".venv", "__pycache__", ".mypy_cache"],
+
+    // "typeCheckingMode": "basic",
+    "typeCheckingMode": "off",
+    "reportUndefinedVariable": "error",
+
+    "autoImportCompletions": true,
+    "reportMissingImports": true,
+    "reportMissingModuleSource": false
+}

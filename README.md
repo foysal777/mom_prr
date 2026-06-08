@@ -1,0 +1,9 @@
+# download and install mega-cmd
+
+wget https://mega.nz/linux/repo/xUbuntu_22.04/amd64/megacmd-xUbuntu_22.04_amd64.deb
+sudo apt install ./megacmd-xUbuntu_22.04_amd64.deb
+
+
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxODMyOTg3ODg1LCJpYXQiOjE3NTk2NTQ1NjUsImp0aSI6IjIyNjJmZGM0MGEwNzQ3ZWVhODVlYWE1NjI0ZTdlNzQ5IiwidXNlcl9pZCI6IjIifQ.ySGpOSfuwjHw-3tUc7OvmU9END9PlQVjzC511smAZ5A
+
