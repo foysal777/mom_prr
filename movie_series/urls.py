@@ -26,7 +26,8 @@ from .views import (
     like_episode, dislike_episode,
     like_series, dislike_series,
     notify_movie, notify_seasons,
-    save_progress, get_progress, get_all_progress
+    save_progress, get_progress, get_all_progress,
+    public_movie_list
 )
 
 # router = DefaultRouter()
@@ -56,6 +57,7 @@ def my_funk(request):
 
 
 urlpatterns = [
+    path("movies/public/", public_movie_list, name="movies-public"),
     path("genres/", get_genre_list, name="genre-list"),
     path("search_all/", search_all, name="search-all"),
     path("all/", get_all_movie_series, name="search-all"),

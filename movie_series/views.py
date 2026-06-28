@@ -14,7 +14,7 @@ from django.db import models
 
 from rest_framework.generics import ListAPIView
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
@@ -39,7 +39,8 @@ from .serializers import (
     MovieSerializer, SeriesSerializer,
     SeasonSerializer, SeriesFullSerializer,
     WatchLaterSerializer, MovieDetailSerializer,
-    VideoProgressStatusSerializer, EpisodeSerializer
+    VideoProgressStatusSerializer, EpisodeSerializer,
+    MoviePublicSerializer
 )
 
 from .request_serializers import (
@@ -757,3 +758,14 @@ def get_all_progress(request):
             for episode_data in episode_data_set
         ],
     })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_movie_list(request):
+    movies = Movie.objects.all().order_by('-id')
+    serializer = MoviePublicSerializer(movies, many=True)
+    return Response({
+        "data": serializer.data
+    })
+
