@@ -456,20 +456,3 @@ class VideoProgressStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoProgressStatus
         fields = "__all__"
-
-
-class MoviePublicSerializer(serializers.ModelSerializer):
-    thumbnail_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Movie
-        fields = (
-            "id", "title", "posters_url", "thumbnail_url",
-            "release_year", "runtime_minutes", "description",
-            "publish"
-        )
-
-    def get_thumbnail_url(self, instance):
-        if instance.posters_url and isinstance(instance.posters_url, list) and len(instance.posters_url) > 0:
-            return instance.posters_url[0]
-        return None

@@ -86,7 +86,7 @@ def search_movie(request, payload):
 
 
 def search_series(request, payload):
-    search_query = SearchSerializer(data=request.data)
+    search_query = SearchSerializer(data=payload)
     search_query.is_valid(raise_exception=True)
 
     year_from = payload.get('year_from')
@@ -179,7 +179,8 @@ def search_series(request, payload):
 
 
 def get_all_movies(request):
-    search_query = SearchSerializer(data=request.data)
+    data = request.data if request.method == 'POST' else request.query_params
+    search_query = SearchSerializer(data=data)
     search_query.is_valid(raise_exception=True)
     current_year = datetime.datetime.now().year
     previous_year = current_year - 1
@@ -264,7 +265,8 @@ def get_all_movies(request):
 
 
 def get_all_series(request):
-    search_query = SearchSerializer(data=request.data)
+    data = request.data if request.method == 'POST' else request.query_params
+    search_query = SearchSerializer(data=data)
     search_query.is_valid(raise_exception=True)
     current_year = datetime.datetime.now().year
     previous_year = current_year - 1

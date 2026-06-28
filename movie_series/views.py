@@ -39,8 +39,7 @@ from .serializers import (
     MovieSerializer, SeriesSerializer,
     SeasonSerializer, SeriesFullSerializer,
     WatchLaterSerializer, MovieDetailSerializer,
-    VideoProgressStatusSerializer, EpisodeSerializer,
-    MoviePublicSerializer
+    VideoProgressStatusSerializer, EpisodeSerializer
 )
 
 from .request_serializers import (
@@ -208,7 +207,7 @@ def search_all(request):
 
 
 @extend_schema(responses=MovieSerializer)
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def movies_all(request):
     return Response({
@@ -258,7 +257,7 @@ def movies_by_genre(request, genre_slug):
 
 
 @extend_schema(responses=SeriesFullSerializer)
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def series_all(request):
     return Response({
@@ -266,13 +265,26 @@ def series_all(request):
     })
 
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def get_all_movie_series(request):
     return Response({
         'data': {
             'movies': utils.get_all_movies(request),
             'series': utils.get_all_series(request)
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_public_all_movie_series(request):
+    movies = Movie.objects.filter(publish=True).prefetch_related('genres')
+    series = Series.objects.prefetch_related('genres')
+    return Response({
+        'data': {
+            'movies': MovieSerializer(movies, many=True).data,
+            'series': SeriesSerializer(series, many=True).data
         }
     })
 
@@ -758,14 +770,3 @@ def get_all_progress(request):
             for episode_data in episode_data_set
         ],
     })
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def public_movie_list(request):
-    movies = Movie.objects.all().order_by('-id')
-    serializer = MoviePublicSerializer(movies, many=True)
-    return Response({
-        "data": serializer.data
-    })
-

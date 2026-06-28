@@ -19,6 +19,7 @@ from .views import (
     get_genre_list,
     movies_by_genre, series_by_genre,
     get_all_movie_series,
+    get_public_all_movie_series,
     get_watch_history,
     get_comming_soon,
     remove_from_watch_history,
@@ -26,8 +27,7 @@ from .views import (
     like_episode, dislike_episode,
     like_series, dislike_series,
     notify_movie, notify_seasons,
-    save_progress, get_progress, get_all_progress,
-    public_movie_list
+    save_progress, get_progress, get_all_progress
 )
 
 # router = DefaultRouter()
@@ -57,10 +57,10 @@ def my_funk(request):
 
 
 urlpatterns = [
-    path("movies/public/", public_movie_list, name="movies-public"),
     path("genres/", get_genre_list, name="genre-list"),
     path("search_all/", search_all, name="search-all"),
     path("all/", get_all_movie_series, name="search-all"),
+    path("public/all/", get_public_all_movie_series, name="public-all-movie-series"),
     path("comming_soon/", get_comming_soon, name="search-all"),
     path("watch_later/", get_watch_later),
     path("watch_later_add/", add_to_watch_later),
