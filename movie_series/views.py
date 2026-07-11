@@ -123,6 +123,39 @@ class SeriesDetailView(RetrieveAPIView):
     #     ).get(id=pk)
 
 
+class PublicSeriesDetailView(RetrieveAPIView):
+    serializer_class = SeriesFullSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        request = self.request
+        user = request.user
+        if user and user.is_authenticated:
+            return Series.objects.annotate(
+                is_collection=Exists(
+                    user.premium_collection.movies.filter(
+                        id=OuterRef('id')
+                    )
+                ),
+                liked=Exists(
+                    user.likes.series.filter(id=OuterRef('id'))
+                ),
+                disliked=Exists(
+                    user.dislikes.series.filter(id=OuterRef('id'))
+                ),
+                user_lang=Value(
+                    user.language,
+                    output_field=models.CharField()
+            )).all()
+        else:
+            return Series.objects.annotate(
+                is_collection=Value(False, output_field=models.BooleanField()),
+                liked=Value(False, output_field=models.BooleanField()),
+                disliked=Value(False, output_field=models.BooleanField()),
+                user_lang=Value('en_US', output_field=models.CharField())
+            ).all()
+
+
 class MovieDetailView(RetrieveAPIView):
     # serializer_class = MovieSerializer
     serializer_class = MovieDetailSerializer
@@ -150,6 +183,39 @@ class MovieDetailView(RetrieveAPIView):
     # def get_object(self):
     #     pk = self.kwargs.get('pk')
     #     return super().get_queryset().get(id=pk)
+
+
+class PublicMovieDetailView(RetrieveAPIView):
+    serializer_class = MovieDetailSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        request = self.request
+        user = request.user
+        if user and user.is_authenticated:
+            return Movie.objects.annotate(
+                is_collection=Exists(
+                    user.premium_collection.movies.filter(
+                        id=OuterRef('id')
+                    )
+                ),
+                liked=Exists(
+                    user.likes.movies.filter(id=OuterRef('id'))
+                ),
+                disliked=Exists(
+                    user.dislikes.movies.filter(id=OuterRef('id'))
+                ),
+                user_lang=Value(
+                    user.language,
+                    output_field=models.CharField()
+            )).all()
+        else:
+            return Movie.objects.annotate(
+                is_collection=Value(False, output_field=models.BooleanField()),
+                liked=Value(False, output_field=models.BooleanField()),
+                disliked=Value(False, output_field=models.BooleanField()),
+                user_lang=Value('en_US', output_field=models.CharField())
+            ).all()
 
 
 @extend_schema(request=SearchAllSerializer)

@@ -10,6 +10,8 @@ from .views import (
     get_video_playlist,
     SeriesDetailView,
     MovieDetailView,
+    PublicSeriesDetailView,
+    PublicMovieDetailView,
     get_watch_later,
     series_all,
     premium_collection,
@@ -89,6 +91,16 @@ urlpatterns = [
         "movie/<int:pk>/detail/",
         MovieDetailView.as_view(),
         name="movie-detail"
+    ),
+    path(
+        "public/series/<int:pk>/detail/",
+        PublicSeriesDetailView.as_view(),
+        name="public-series-detail"
+    ),
+    path(
+        "public/movie/<int:pk>/detail/",
+        PublicMovieDetailView.as_view(),
+        name="public-movie-detail"
     ),
 
     path("<str:file_uuid>/get_video_playlist/", get_video_playlist),
