@@ -1,10 +1,12 @@
+import os
+from decimal import Decimal
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from decimal import Decimal
-
+from PIL import Image
 
 from .utils import create_otp
 import stripe
@@ -73,6 +75,11 @@ class CustomUser(AbstractUser):
     ), default="en_US")
 
     device_token = models.CharField(max_length=150, default="")
+    platform = models.CharField(max_length=50, default="", blank=True)
+    device_model = models.CharField(max_length=100, default="", blank=True)
+    os_version = models.CharField(max_length=50, default="", blank=True)
+    app_version = models.CharField(max_length=50, default="", blank=True)
+    device_id = models.CharField(max_length=100, default="", blank=True)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
     objects = CustomUserManager()

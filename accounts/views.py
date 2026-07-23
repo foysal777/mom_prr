@@ -41,6 +41,7 @@ from .request_serializers import (
     SupportQuerySerializer,
     GoogleLoginSerializer,
     AppleLoginSerializer,
+    GuestLoginSerializer,
     TokenLoginRequest
 )
 
@@ -140,6 +141,54 @@ def google_login_view(request):
 
 
 APPLE_LOGIN_SECRET = settings.APPLE_LOGIN_SECRET
+
+
+@extend_schema(request=GuestLoginSerializer)
+@api_view(['post'])
+@permission_classes([AllowAny])
+def guest_login_view(request):
+    serializer = GuestLoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    device_id = serializer.validated_data.get('device_id')
+    push_token = serializer.validated_data.get('push_token', '')
+    platform = serializer.validated_data.get('platform', '')
+    model = serializer.validated_data.get('model', '')
+    os_version = serializer.validated_data.get('os_version', '')
+    app_version = serializer.validated_data.get('app_version', '')
+
+    if not device_id:
+        raise ValidationError({"error": "device_id is required"})
+
+    username = f"guest_{device_id}"
+    email = f"{username}@guest.local"
+
+    user, created = UserModel.objects.get_or_create(
+        username=username,
+        defaults={
+            'email': email,
+            'is_active': True,
+        }
+    )
+
+    if created:
+        user.set_unusable_password()
+
+    user.device_token = push_token or user.device_token
+    user.platform = platform
+    user.device_model = model
+    user.os_version = os_version
+    user.app_version = app_version
+    user.device_id = device_id
+    user.save()
+
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+        'is_new_user': created,
+    })
 
 
 @extend_schema(request=GoogleLoginSerializer)
