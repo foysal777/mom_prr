@@ -27,6 +27,8 @@ from accounts.views import (
     check_subscription_status,
 )
 
+
+#fdfdlkfd
 urlpatterns = [
     path('register/', UserCreateAPIView.as_view(), name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
