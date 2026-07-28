@@ -1,7 +1,7 @@
 __pycache__
 *.pyc
 venv
-**/migrations
+# **/migrations
 db.sqlite3
 .env
 fcm-cred.json
