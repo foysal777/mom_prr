@@ -20,6 +20,7 @@ urlpatterns = [
     path('purchase/', purchage_movie_series),
     path('profile/', profile),
     path('subcription_prices/', subscription_prices),
+    path('subscription_prices/', subscription_prices),
     path('revenuecat_sync/', revenuecat_sync_purchase),
     path('revenuecat_webhook/', revenuecat_webhook),
 ]

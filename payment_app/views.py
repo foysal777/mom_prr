@@ -32,6 +32,7 @@ from .models import Subscription
 
 from movie_series.models import Movie, Series, PremiumCollection
 from .moncash_client import MoncashClient
+from accounts.models import SiteConfig
 
 
 from django.contrib.auth import get_user_model
@@ -161,10 +162,19 @@ def subscribe(request):
         "period": period
     }
 
+    site_config = SiteConfig.objects.first()
+    if not site_config:
+        return Response({"error": "Subscription service is not configured"}, status=503)
+
     if req_ser.validated_data.get('is_moncash'):
-        if period == 'monthly':
-            amount = settings.SITE_CONFIG.yearly_moncash_subscription_price
-        amount = settings.SITE_CONFIG.moncash_subscription_price
+        if period == 'yearly':
+            amount = site_config.yearly_moncash_subscription_price
+        else:
+            amount = site_config.moncash_subscription_price
+
+        if not amount or amount <= 0:
+            return Response({"error": f"{period} Moncash subscription is not configured"}, status=503)
+
         metadata['randomness'] = str(uuid.uuid4())
         url, _err = moncash_client.create_payment(
             amount, json.dumps(metadata)
@@ -177,16 +187,17 @@ def subscribe(request):
         return Response({
             "url": url
         })
-        pass
 
-    if period == 'month' and not settings.SITE_CONFIG.subscription_price_id:
-        return Response({"error": "monthly subscription is not enabled"}, 503)
+    if period == 'monthly' and not site_config.subscription_price_id:
+        return Response({"error": "monthly subscription is not enabled"}, status=503)
 
-    if period == 'yearly' and not settings.SITE_CONFIG.yearly_subscription_price_id:
-        return Response({"error": "monthly subscription is not enabled"}, 503)
+    if period == 'yearly' and not site_config.yearly_subscription_price_id:
+        return Response({"error": "yearly subscription is not enabled"}, status=503)
 
-    price_id = settings.SITE_CONFIG.subscription_price_id\
-        if period == 'monthly' else settings.SITE_CONFIG.yearly_subscription_price_id
+    price_id = (
+        site_config.subscription_price_id
+        if period == 'monthly' else site_config.yearly_subscription_price_id
+    )
 
     url = create_stripe_subscription_checkout_url(
         price_id=price_id,
@@ -197,7 +208,6 @@ def subscribe(request):
     return Response({
         "url": url
     })
-    pass
 
 
 @extend_schema(request=MovieSeriesPurchaseRequestSerializer)
@@ -310,22 +320,38 @@ def profile(request):
 
 @api_view(['GET'])
 def subscription_prices(request):
-    # stripe.
-    stripe_price_monthly = stripe.Price.retrieve(
-        settings.SITE_CONFIG.subscription_price_id
-    ).unit_amount
+    site_config = SiteConfig.objects.first()
 
-    stripe_price_yearly = stripe.Price.retrieve(
-        settings.SITE_CONFIG.yearly_subscription_price_id
-    ).unit_amount
+    stripe_price_monthly = 0.0
+    stripe_price_yearly = 0.0
+
+    if site_config and site_config.subscription_price_id:
+        try:
+            stripe_obj = stripe.Price.retrieve(site_config.subscription_price_id)
+            if hasattr(stripe_obj, 'unit_amount') and stripe_obj.unit_amount is not None:
+                stripe_price_monthly = stripe_obj.unit_amount / 100
+        except Exception as e:
+            print(f"Error retrieving monthly stripe price: {e}")
+
+    if site_config and site_config.yearly_subscription_price_id:
+        try:
+            stripe_obj = stripe.Price.retrieve(site_config.yearly_subscription_price_id)
+            if hasattr(stripe_obj, 'unit_amount') and stripe_obj.unit_amount is not None:
+                stripe_price_yearly = stripe_obj.unit_amount / 100
+        except Exception as e:
+            print(f"Error retrieving yearly stripe price: {e}")
+
+    moncash_monthly = float(site_config.moncash_subscription_price) if site_config and site_config.moncash_subscription_price is not None else 0.0
+    moncash_yearly = float(site_config.yearly_moncash_subscription_price) if site_config and site_config.yearly_moncash_subscription_price is not None else 0.0
+
     return Response({
         "stripe": {
-            "monthly": stripe_price_monthly/100,
-            "yearly": stripe_price_yearly/100,
+            "monthly": stripe_price_monthly,
+            "yearly": stripe_price_yearly,
         },
         "moncash": {
-            "monthly": settings.SITE_CONFIG.moncash_subscription_price,
-            "yearly": settings.SITE_CONFIG.yearly_moncash_subscription_price,
+            "monthly": moncash_monthly,
+            "yearly": moncash_yearly,
         }
     })
 

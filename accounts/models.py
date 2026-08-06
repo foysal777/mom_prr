@@ -110,7 +110,7 @@ class CustomUser(AbstractUser):
 
 
 class SiteConfig(models.Model):
-    subscription_price_id = models.CharField(max_length=100, null=True)
+    subscription_price_id = models.CharField(max_length=100, null=True, blank=True)
     moncash_subscription_price = models.DecimalField(
         max_digits=15,
         decimal_places=2,
@@ -118,21 +118,30 @@ class SiteConfig(models.Model):
         validators=[MinValueValidator(Decimal('0.01'))]
     )
 
-    yearly_subscription_price_id = models.CharField(max_length=100, null=True)
+    yearly_subscription_price_id = models.CharField(max_length=100, null=True, blank=True)
     yearly_moncash_subscription_price = models.DecimalField(
         max_digits=15,
         decimal_places=2,
         default=Decimal(0.0),
         validators=[MinValueValidator(Decimal('0.01'))]
     )
-    privacy_policy = models.TextField(default="")
+    privacy_policy = models.TextField(default="", blank=True)
 
-    def full_clean(self, exclude, validate_unique=False):
+    def clean(self):
+        super().clean()
         if self.subscription_price_id:
             try:
                 stripe.Price.retrieve(self.subscription_price_id)
-            except stripe._error.InvalidRequestError as e:
-                raise ValidationError(str(e))
+            except Exception as e:
+                raise ValidationError({"subscription_price_id": str(e)})
+        if self.yearly_subscription_price_id:
+            try:
+                stripe.Price.retrieve(self.yearly_subscription_price_id)
+            except Exception as e:
+                raise ValidationError({"yearly_subscription_price_id": str(e)})
+
+    def __str__(self):
+        return f"Site Configuration ({self.pk})"
 
 
 class HelpSupport(models.Model):

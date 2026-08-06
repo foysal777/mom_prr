@@ -11,8 +11,3 @@ class AccountsConfig(AppConfig):
     def ready(self):
         from . import signals
 
-        print("preparing app")
-        from .models import SiteConfig
-        print("\n\n........ setting up SiteConfig in app.ready ..........\n\n")
-        settings.SITE_CONFIG = SiteConfig.objects.first()
-
