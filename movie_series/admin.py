@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.db.models import Count
 from .models import (
     Genre, Movie, Series,
     Season, Episode, WatchHistory,
@@ -43,6 +44,7 @@ class MovieAdmin(admin.ModelAdmin):
         'runtime_minutes',
         'premium_price_usd',
         'premium_price_gourde',
+        'user_views_count',
         'view_count',
         'is_popular',
         'publish',
@@ -70,6 +72,12 @@ class MovieAdmin(admin.ModelAdmin):
     actions = [make_published, make_unpublished]
     ordering = ['-created_at']
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            annotated_user_views=Count('watchhistory', distinct=True)
+        )
+
     def get_form(self, request, obj, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         if 'upload_video' in form.base_fields.keys():
@@ -90,6 +98,12 @@ class MovieAdmin(admin.ModelAdmin):
     @admin.display(description='Genres')
     def display_genres(self, obj):
         return ", ".join([g.name for g in obj.genres.all()[:3]]) or "-"
+
+    @admin.display(description='User Views', ordering='annotated_user_views')
+    def user_views_count(self, obj):
+        if hasattr(obj, 'annotated_user_views'):
+            return obj.annotated_user_views
+        return obj.watchhistory_set.count()
 
 
 class EpisodeInline(admin.TabularInline):
@@ -113,6 +127,7 @@ class SeriesAdmin(admin.ModelAdmin):
         'seasons_count',
         'premium_price_usd',
         'premium_price_gourde',
+        'user_views_count',
         'view_count',
         'is_popular',
         'created_at'
@@ -135,6 +150,12 @@ class SeriesAdmin(admin.ModelAdmin):
     inlines = [SeasonInline]
     ordering = ['-created_at']
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            annotated_user_views=Count('watchhistory', distinct=True)
+        )
+
     @admin.display(description='Genres')
     def display_genres(self, obj):
         return ", ".join([g.name for g in obj.genres.all()[:3]]) or "-"
@@ -142,6 +163,12 @@ class SeriesAdmin(admin.ModelAdmin):
     @admin.display(description='Seasons')
     def seasons_count(self, obj):
         return obj.seasons.count()
+
+    @admin.display(description='User Views', ordering='annotated_user_views')
+    def user_views_count(self, obj):
+        if hasattr(obj, 'annotated_user_views'):
+            return obj.annotated_user_views
+        return obj.watchhistory_set.count()
 
 
 @admin.register(Season)

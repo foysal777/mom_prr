@@ -1,6 +1,11 @@
 from django.contrib.auth import get_user_model
+from django.contrib.admin.sites import AdminSite
+from django.test import RequestFactory
 from django.urls import reverse
 from rest_framework.test import APITestCase
+from accounts.models import CustomUser
+from accounts.admin import CustomUserAdmin
+from movie_series.models import Movie, Series
 
 
 class GuestLoginTests(APITestCase):
@@ -30,3 +35,38 @@ class GuestLoginTests(APITestCase):
         self.assertEqual(user.device_model, 'Pixel 8 Pro')
         self.assertEqual(user.os_version, '14')
         self.assertEqual(user.app_version, '2.1.0')
+
+
+class CustomUserAdminViewCountTests(APITestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.site = AdminSite()
+        self.user = CustomUser.objects.create_user(
+            email="testadminuser@example.com",
+            password="password123",
+            username="testadminuser"
+        )
+        self.movie1 = Movie.objects.create(title="Movie 1", publish=True)
+        self.movie2 = Movie.objects.create(title="Movie 2", publish=True)
+        self.series1 = Series.objects.create(name="Series 1")
+
+    def test_user_admin_view_counts(self):
+        self.user.watch_history.movies.add(self.movie1, self.movie2)
+        self.user.watch_history.series.add(self.series1)
+
+        user_admin = CustomUserAdmin(CustomUser, self.site)
+        request = self.factory.get('/admin/accounts/customuser/')
+        request.user = self.user
+        qs = user_admin.get_queryset(request)
+        annotated_user = qs.get(id=self.user.id)
+
+        self.assertEqual(annotated_user.annotated_movies_count, 2)
+        self.assertEqual(annotated_user.annotated_series_count, 1)
+        self.assertEqual(annotated_user.annotated_total_views, 3)
+
+        self.assertEqual(user_admin.watched_movies_count(annotated_user), 2)
+        self.assertEqual(user_admin.watched_series_count(annotated_user), 1)
+        self.assertEqual(user_admin.total_view_count(annotated_user), 3)
+
+        summary = user_admin.user_watch_summary(self.user)
+        self.assertIn("2 Movies watched, 1 Series watched (Total: 3 views)", summary)

@@ -118,8 +118,10 @@ class SeriesDetailView(RetrieveAPIView):
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
         pk = self.kwargs.get('pk')
-        if pk:
-            Series.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        if pk and request.user and request.user.is_authenticated:
+            if hasattr(request.user, 'watch_history') and not request.user.watch_history.series.filter(id=pk).exists():
+                request.user.watch_history.series.add(pk)
+                Series.objects.filter(id=pk).update(view_count=F('view_count') + 1)
         return response
 
 
@@ -158,8 +160,10 @@ class PublicSeriesDetailView(RetrieveAPIView):
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
         pk = self.kwargs.get('pk')
-        if pk:
-            Series.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        if pk and request.user and request.user.is_authenticated:
+            if hasattr(request.user, 'watch_history') and not request.user.watch_history.series.filter(id=pk).exists():
+                request.user.watch_history.series.add(pk)
+                Series.objects.filter(id=pk).update(view_count=F('view_count') + 1)
         return response
 
 
@@ -190,8 +194,10 @@ class MovieDetailView(RetrieveAPIView):
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
         pk = self.kwargs.get('pk')
-        if pk:
-            Movie.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        if pk and request.user and request.user.is_authenticated:
+            if hasattr(request.user, 'watch_history') and not request.user.watch_history.movies.filter(id=pk).exists():
+                request.user.watch_history.movies.add(pk)
+                Movie.objects.filter(id=pk).update(view_count=F('view_count') + 1)
         return response
 
 
@@ -230,8 +236,10 @@ class PublicMovieDetailView(RetrieveAPIView):
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
         pk = self.kwargs.get('pk')
-        if pk:
-            Movie.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        if pk and request.user and request.user.is_authenticated:
+            if hasattr(request.user, 'watch_history') and not request.user.watch_history.movies.filter(id=pk).exists():
+                request.user.watch_history.movies.add(pk)
+                Movie.objects.filter(id=pk).update(view_count=F('view_count') + 1)
         return response
 
 
@@ -478,12 +486,16 @@ def get_video_playlist(request, file_uuid):
         seasons__episodes__file_uuid=file_uuid
     ).first()
 
-    if movie:
-        request.user.watch_history.movies.add(movie)
-        Movie.objects.filter(id=movie.id).update(view_count=F('view_count') + 1)
-    if series:
-        request.user.watch_history.series.add(series)
-        Series.objects.filter(id=series.id).update(view_count=F('view_count') + 1)
+    if movie and request.user and request.user.is_authenticated:
+        if hasattr(request.user, 'watch_history'):
+            if not request.user.watch_history.movies.filter(id=movie.id).exists():
+                request.user.watch_history.movies.add(movie)
+                Movie.objects.filter(id=movie.id).update(view_count=F('view_count') + 1)
+    if series and request.user and request.user.is_authenticated:
+        if hasattr(request.user, 'watch_history'):
+            if not request.user.watch_history.series.filter(id=series.id).exists():
+                request.user.watch_history.series.add(series)
+                Series.objects.filter(id=series.id).update(view_count=F('view_count') + 1)
 
     if False and movie and movie.is_premium and movie not in \
             request.user.premium_collection.movies:
