@@ -7,8 +7,9 @@ import stripe
 from django.shortcuts import render
 from django.conf import settings
 
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import permission_classes, api_view
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import permission_classes, authentication_classes, api_view
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 
@@ -19,6 +20,7 @@ from .stripe_utils import (
     create_stripe_subscription_checkout_url,
     handle_checkout_session_complete,
     handle_subscription_period_complete,
+    handle_invoice_payment_succeeded,
     handle_movie_series_purchase,
     create_payment_url
 )
@@ -43,40 +45,39 @@ moncash_client = MoncashClient()
 
 @extend_schema(exclude=True)
 @api_view(['POST'])
+@permission_classes([AllowAny])
+@authentication_classes([])
 def stripe_webhook(request):
-    event = None
     payload = request.body
-    sig_header = request.headers.get('STRIPE_SIGNATURE')
+    sig_header = request.headers.get('stripe-signature') or request.META.get('HTTP_STRIPE_SIGNATURE')
     if not sig_header:
-        raise ValidationError({"error": "validation signature not found"})
+        return Response({"error": "validation signature not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+    webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+    if not webhook_secret:
+        return Response({"error": "STRIPE_WEBHOOK_SECRET is not set in environment"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, os.environ['STRIPE_WEBHOOK_SECRET'],
+            payload, sig_header, webhook_secret,
         )
-
-        print("debug event ", event['type'])
-        # return Response()
+        print("Received Stripe webhook event:", event.get('type'))
     except ValueError as e:
-        return Response({'error': "invalid payload"}, status=400)
+        return Response({'error': "invalid payload"}, status=status.HTTP_400_BAD_REQUEST)
     except stripe.error.SignatureVerificationError as e:
         return Response({'error': "invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    if event['type'] == 'checkout.session.completed':
+    event_type = event.get('type')
+    if event_type == 'checkout.session.completed':
         return handle_checkout_session_complete(event)
 
-    if event['type'] == 'invoice.payment_succeeded':
-        invoice = event['data']['object']
-        # return Response()
-        # print(json.dumps(event['data']['object'], indent=2))
-        parent_type = invoice['parent']['type']
-        if parent_type == 'subscription_details':
-            metadata = invoice[
-                'parent'
-            ]['subscription_details']['metadata']
-            if metadata.get('app_name') == 'mom_pr':
-                return handle_subscription_period_complete(metadata)
-    return Response({'error': 'invalid event'}, status=400)
+    if event_type == 'invoice.payment_succeeded':
+        return handle_invoice_payment_succeeded(event)
+
+    # For any other unhandled Stripe events, return HTTP 200 OK so Stripe knows it was received and does not retry
+    return Response({'status': 'ignored', 'event_type': event_type}, status=status.HTTP_200_OK)
 
 
 @extend_schema(exclude=True)

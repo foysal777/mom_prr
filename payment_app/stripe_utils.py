@@ -1,8 +1,11 @@
 import stripe
 import os
+import json
+import ast
 
 from django.contrib.auth import get_user_model
 
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -73,46 +76,82 @@ def create_payment_url(amount_usd, metadata, success_url, cancel_url):
 
 
 def handle_movie_series_purchase(metadata):
-    user_id = metadata['user_id']
-    movie_ids = eval(metadata['movie_ids'])
-    series_ids = eval(metadata['series_ids'])
+    user_id = metadata.get('user_id')
+    if not user_id:
+        return Response({"message": "No user_id found in metadata"}, status=status.HTTP_200_OK)
+
+    movie_ids = []
+    series_ids = []
+
+    raw_movie_ids = metadata.get('movie_ids', '[]')
+    if isinstance(raw_movie_ids, list):
+        movie_ids = raw_movie_ids
+    elif isinstance(raw_movie_ids, str):
+        try:
+            movie_ids = json.loads(raw_movie_ids)
+        except Exception:
+            try:
+                movie_ids = ast.literal_eval(raw_movie_ids)
+            except Exception:
+                movie_ids = []
+
+    raw_series_ids = metadata.get('series_ids', '[]')
+    if isinstance(raw_series_ids, list):
+        series_ids = raw_series_ids
+    elif isinstance(raw_series_ids, str):
+        try:
+            series_ids = json.loads(raw_series_ids)
+        except Exception:
+            try:
+                series_ids = ast.literal_eval(raw_series_ids)
+            except Exception:
+                series_ids = []
 
     premium_collection, _created = PremiumCollection.objects.get_or_create(
         user_id=user_id
     )
-    premium_collection.movies.add(*movie_ids)
-    premium_collection.series.add(*series_ids)
-    return Response({"message": "successfully added to premium_collection"})
+    if movie_ids:
+        premium_collection.movies.add(*movie_ids)
+    if series_ids:
+        premium_collection.series.add(*series_ids)
+    return Response({"message": "successfully added to premium_collection"}, status=status.HTTP_200_OK)
 
 
 def handle_checkout_session_complete(event):
-    metadata = event['data']['object']['metadata']
-    user_id = metadata.get('user_id')
-    # subscription_type = metadata.get('subscription_type')
-    plan_id = metadata.get('plan_id')
+    session = event.get('data', {}).get('object', {})
+    metadata = session.get('metadata') or {}
 
     app_name = metadata.get('app_name')
-
     if app_name != "mom_pr":
-        raise ValidationError({"error": "You have lost home."})
+        print("checkout.session.completed ignored: app_name is not mom_pr")
+        return Response({'message': "Ignored: not a mom_pr checkout session"}, status=status.HTTP_200_OK)
 
-    stripe_subscription_id = event['data']['object']['subscription']
-    print("DEBUGINH SUB ID....")
+    user_id = metadata.get('user_id')
+    if not user_id:
+        return Response({'message': "No user_id in metadata"}, status=status.HTTP_200_OK)
+
+    stripe_subscription_id = session.get('subscription')
+    print("DEBUGGING SUB ID....", stripe_subscription_id)
+
     if stripe_subscription_id:
         sub, _created = Subscription.objects.get_or_create(user_id=user_id)
 
-        if sub.stripe_subscription_id:
+        if sub.stripe_subscription_id and sub.stripe_subscription_id != stripe_subscription_id:
             try:
                 stripe.Subscription.cancel(sub.stripe_subscription_id)
-            except stripe._error.StripeError as e:
-                pass
-        subscription = stripe.Subscription.modify(
-            stripe_subscription_id,
-            metadata=metadata,
-        )
-        print("subscription_modified....")
+            except Exception as e:
+                print("Error canceling old subscription:", e)
 
-        period = metadata['period']
+        try:
+            stripe.Subscription.modify(
+                stripe_subscription_id,
+                metadata=metadata,
+            )
+            print("subscription_modified....")
+        except Exception as e:
+            print("Error modifying subscription metadata:", e)
+
+        period = metadata.get('period', 'monthly')
         sub.set_subscribe(period)
         sub.stripe_subscription_id = stripe_subscription_id
         sub.save()
@@ -120,30 +159,65 @@ def handle_checkout_session_complete(event):
         return handle_movie_series_purchase(metadata)
 
     print("save return response")
-    return Response({'success': True}, status=200)
+    return Response({'success': True}, status=status.HTTP_200_OK)
 
 
 def handle_subscription_period_complete(metadata):
-    print(metadata)
+    print("handling subscription period complete:", metadata)
     user_id = metadata.get('user_id')
+    if not user_id:
+        return Response({'message': 'No user_id found in metadata'}, status=status.HTTP_200_OK)
 
-    period = metadata['period']
-    # subscription_type = metadata.get('subscription_type')
-
+    period = metadata.get('period', 'monthly')
     app_name = metadata.get('app_name')
 
     if app_name != "mom_pr":
-        raise ValidationError({"error": "You have lost home."})
+        return Response({'message': 'Ignored: not mom_pr'}, status=status.HTTP_200_OK)
 
-    sub = get_object_or_404(Subscription, user_id=user_id)
+    sub = Subscription.objects.filter(user_id=user_id).first()
+    if not sub:
+        sub = Subscription.objects.create(user_id=user_id)
 
     sub.set_subscribe(period)
-    # sub.set_subscribe(subscription_type)
-
     sub.save()
 
-    print("save return response")
-    return Response({'success': True}, status=200)
+    print("Subscription updated successfully")
+    return Response({'success': True}, status=status.HTTP_200_OK)
+
+
+def handle_invoice_payment_succeeded(event):
+    invoice = event.get('data', {}).get('object', {})
+    stripe_subscription_id = invoice.get('subscription')
+
+    # Try extracting metadata from various possible Stripe invoice locations
+    metadata = invoice.get('metadata') or {}
+    if not metadata and 'subscription_details' in invoice and invoice['subscription_details']:
+        metadata = invoice['subscription_details'].get('metadata') or {}
+    if not metadata and 'parent' in invoice and isinstance(invoice['parent'], dict):
+        metadata = invoice['parent'].get('subscription_details', {}).get('metadata') or {}
+
+    # Check lines if metadata is still empty
+    if not metadata:
+        lines = invoice.get('lines', {}).get('data', [])
+        if lines and isinstance(lines, list) and len(lines) > 0:
+            metadata = lines[0].get('metadata') or {}
+
+    if metadata and metadata.get('app_name') == 'mom_pr' and metadata.get('user_id'):
+        return handle_subscription_period_complete(metadata)
+
+    # Fallback: if metadata is not attached to invoice, look up existing subscription by stripe_subscription_id
+    if stripe_subscription_id:
+        sub = Subscription.objects.filter(stripe_subscription_id=stripe_subscription_id).first()
+        if sub:
+            period = sub.period or 'monthly'
+            sub.set_subscribe(period)
+            sub.save()
+            print(f"Subscription renewed via stripe_subscription_id fallback for user {sub.user_id}")
+            return Response({'success': True, 'message': 'Subscription renewed via fallback'}, status=status.HTTP_200_OK)
+
+    print("invoice.payment_succeeded: No matching subscription found to renew")
+    return Response({'status': 'ignored', 'message': 'Not a mom_pr subscription invoice'}, status=status.HTTP_200_OK)
+
 
 
 
