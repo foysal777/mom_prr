@@ -80,6 +80,11 @@ def handle_movie_series_purchase(metadata):
     if not user_id:
         return Response({"message": "No user_id found in metadata"}, status=status.HTTP_200_OK)
 
+    user = UserModel.objects.filter(id=user_id).first()
+    if not user:
+        print(f"handle_movie_series_purchase: User {user_id} does not exist in database")
+        return Response({"message": f"User {user_id} not found"}, status=status.HTTP_200_OK)
+
     movie_ids = []
     series_ids = []
 
@@ -108,7 +113,7 @@ def handle_movie_series_purchase(metadata):
                 series_ids = []
 
     premium_collection, _created = PremiumCollection.objects.get_or_create(
-        user_id=user_id
+        user=user
     )
     if movie_ids:
         premium_collection.movies.add(*movie_ids)
@@ -130,11 +135,16 @@ def handle_checkout_session_complete(event):
     if not user_id:
         return Response({'message': "No user_id in metadata"}, status=status.HTTP_200_OK)
 
+    user = UserModel.objects.filter(id=user_id).first()
+    if not user:
+        print(f"handle_checkout_session_complete: User {user_id} does not exist in database")
+        return Response({'message': f"User {user_id} not found"}, status=status.HTTP_200_OK)
+
     stripe_subscription_id = session.get('subscription')
     print("DEBUGGING SUB ID....", stripe_subscription_id)
 
     if stripe_subscription_id:
-        sub, _created = Subscription.objects.get_or_create(user_id=user_id)
+        sub, _created = Subscription.objects.get_or_create(user=user)
 
         if sub.stripe_subscription_id and sub.stripe_subscription_id != stripe_subscription_id:
             try:
@@ -174,9 +184,14 @@ def handle_subscription_period_complete(metadata):
     if app_name != "mom_pr":
         return Response({'message': 'Ignored: not mom_pr'}, status=status.HTTP_200_OK)
 
-    sub = Subscription.objects.filter(user_id=user_id).first()
+    user = UserModel.objects.filter(id=user_id).first()
+    if not user:
+        print(f"handle_subscription_period_complete: User {user_id} does not exist in database")
+        return Response({'message': f"User {user_id} not found"}, status=status.HTTP_200_OK)
+
+    sub = Subscription.objects.filter(user=user).first()
     if not sub:
-        sub = Subscription.objects.create(user_id=user_id)
+        sub = Subscription.objects.create(user=user)
 
     sub.set_subscribe(period)
     sub.save()

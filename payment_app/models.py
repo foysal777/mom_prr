@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 import datetime
 
 
@@ -37,8 +38,8 @@ class Subscription(models.Model):
         t_delta = datetime.timedelta(
             days=30 if period == 'monthly' else 365
         )
-        self.period=period
-        self.purchase_date = datetime.datetime.now()
-        self.subscribe_till = datetime.datetime.now(datetime.timezone.utc) \
+        self.period = period
+        self.purchase_date = timezone.now()
+        self.subscribe_till = timezone.now() \
             + self.remaining_time + t_delta
         # print(self.subscribe_till)

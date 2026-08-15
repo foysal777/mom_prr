@@ -51,32 +51,61 @@ def stripe_webhook(request):
     payload = request.body
     sig_header = request.headers.get('stripe-signature') or request.META.get('HTTP_STRIPE_SIGNATURE')
     if not sig_header:
+        print("Stripe webhook: No stripe-signature header found in request")
         return Response({"error": "validation signature not found"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # 1. Verify signature
     webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
-    if not webhook_secret:
-        return Response({"error": "STRIPE_WEBHOOK_SECRET is not set in environment"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    verified = False
 
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret,
-        )
-        print("Received Stripe webhook event:", event.get('type'))
-    except ValueError as e:
-        return Response({'error': "invalid payload"}, status=status.HTTP_400_BAD_REQUEST)
-    except stripe.error.SignatureVerificationError as e:
+    if webhook_secret:
+        try:
+            stripe.WebhookSignature.verify_header(
+                payload.decode('utf-8') if hasattr(payload, 'decode') else str(payload),
+                sig_header,
+                webhook_secret
+            )
+            verified = True
+        except stripe.error.SignatureVerificationError:
+            pass
+
+    if not verified:
+        # Reload dotenv in case secret was updated in .env recently
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
+        fresh_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+        if fresh_secret and fresh_secret != webhook_secret:
+            try:
+                stripe.WebhookSignature.verify_header(
+                    payload.decode('utf-8') if hasattr(payload, 'decode') else str(payload),
+                    sig_header,
+                    fresh_secret
+                )
+                verified = True
+            except stripe.error.SignatureVerificationError as err:
+                print(f"Stripe webhook signature verification failed: {err}")
+
+    if not verified:
+        print("Stripe webhook: Signature verification failed for payload")
         return Response({'error': "invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 2. Parse event payload as standard dictionary
+    try:
+        event = json.loads(payload.decode('utf-8') if hasattr(payload, 'decode') else payload)
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        print(f"Stripe webhook JSON parse error: {e}")
+        return Response({'error': "invalid json payload"}, status=status.HTTP_400_BAD_REQUEST)
 
     event_type = event.get('type')
+    print(f"Received Stripe webhook event: {event_type}")
+
     if event_type == 'checkout.session.completed':
         return handle_checkout_session_complete(event)
 
     if event_type == 'invoice.payment_succeeded':
         return handle_invoice_payment_succeeded(event)
 
-    # For any other unhandled Stripe events, return HTTP 200 OK so Stripe knows it was received and does not retry
+    # Acknowledge all other events with 200 OK
     return Response({'status': 'ignored', 'event_type': event_type}, status=status.HTTP_200_OK)
 
 
