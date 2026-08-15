@@ -232,8 +232,8 @@ def subscribe(request):
     url = create_stripe_subscription_checkout_url(
         price_id=price_id,
         metadata=metadata,
-        success_url="https://nuweli.com/shows",
-        cancel_url="https://nuweli.com/shows",
+        success_url="https://nuweli.com/shows?pay=success",
+        cancel_url="https://nuweli.com/account/subscription",
     )
     return Response({
         "url": url
