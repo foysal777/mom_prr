@@ -290,8 +290,8 @@ def purchage_movie_series(request):
         url = create_payment_url(
             net_price,
             metadata=metadata,
-            success_url="https://example.com",
-            cancel_url="https://example.com?error=abcd"
+            success_url="https://nuweli.com/shows?pay=success",
+            cancel_url="https://nuweli.com/shows?pay=cancel"
         )
     return Response({
         "url": url
