@@ -203,8 +203,8 @@ def subscribe(request):
     url = create_stripe_subscription_checkout_url(
         price_id=price_id,
         metadata=metadata,
-        success_url="https://example.com",
-        cancel_url="https://example.com?error=abc",
+        success_url="https://nuweli.com/shows",
+        cancel_url="https://nuweli.com/shows",
     )
     return Response({
         "url": url
