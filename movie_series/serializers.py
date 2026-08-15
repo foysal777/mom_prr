@@ -36,7 +36,7 @@ class MovieSerializer(serializers.ModelSerializer):
             "premium_price_gourde", "description",
             "alias_type", 'file_uuid', "comming_soon_time",
             "likes", "dislikes", "liked", "disliked", "trailer",
-            "is_notify"
+            "is_notify", "view_count"
         )
         read_only_fields = fields  # entire serializer is read-only
 
@@ -61,7 +61,7 @@ class MovieSerializer(serializers.ModelSerializer):
         if hasattr(instance, 'is_collection'):
             return instance.is_collection
         else:
-            return None
+            return False
 
     def get_is_premium(self, instance):
         return instance.is_premium
@@ -112,7 +112,7 @@ class MovieDetailSerializer(serializers.ModelSerializer):
             "premium_price_gourde", "description",
             "alias_type", 'file_uuid', 'related_movies',
             "comming_soon_time", "likes", "dislikes",
-            "liked", "disliked", "trailer"
+            "liked", "disliked", "trailer", "view_count"
         )
         read_only_fields = fields  # entire serializer is read-only
 
@@ -266,8 +266,8 @@ class SeriesSerializer(serializers.ModelSerializer):
             "updated_at", "is_collection", "posters_url",
             "premium_price_usd", "premium_price_gourde",
             "description", "alias_type",
-            "likes", "dislikes", "liked", "disliked"
-
+            "likes", "dislikes", "liked", "disliked",
+            "view_count"
         )
         read_only_fields = fields
 
@@ -393,7 +393,8 @@ class SeriesFullSerializer(serializers.ModelSerializer):
             "posters_url", "premium_price_usd",
             "premium_price_gourde", "description",
             'seasons', 'alias_type', "related_series",
-            'likes', 'dislikes', 'liked', 'disliked'
+            'likes', 'dislikes', 'liked', 'disliked',
+            "view_count"
         )
         read_only_fields = fields
 

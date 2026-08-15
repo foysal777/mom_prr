@@ -115,12 +115,12 @@ class SeriesDetailView(RetrieveAPIView):
                 output_field=models.CharField()
         )).all()
 
-    # def get_object(self):
-    #     pk = self.kwargs.get('pk')
-    #     return super().get_queryset().prefetch_related(
-    #         "seasons",
-    #         "seasons__episodes"
-    #     ).get(id=pk)
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        pk = self.kwargs.get('pk')
+        if pk:
+            Series.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        return response
 
 
 class PublicSeriesDetailView(RetrieveAPIView):
@@ -155,6 +155,13 @@ class PublicSeriesDetailView(RetrieveAPIView):
                 user_lang=Value('en_US', output_field=models.CharField())
             ).all()
 
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        pk = self.kwargs.get('pk')
+        if pk:
+            Series.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        return response
+
 
 class MovieDetailView(RetrieveAPIView):
     # serializer_class = MovieSerializer
@@ -180,9 +187,12 @@ class MovieDetailView(RetrieveAPIView):
                 output_field=models.CharField()
         )).all()
 
-    # def get_object(self):
-    #     pk = self.kwargs.get('pk')
-    #     return super().get_queryset().get(id=pk)
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        pk = self.kwargs.get('pk')
+        if pk:
+            Movie.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        return response
 
 
 class PublicMovieDetailView(RetrieveAPIView):
@@ -216,6 +226,13 @@ class PublicMovieDetailView(RetrieveAPIView):
                 disliked=Value(False, output_field=models.BooleanField()),
                 user_lang=Value('en_US', output_field=models.CharField())
             ).all()
+
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        pk = self.kwargs.get('pk')
+        if pk:
+            Movie.objects.filter(id=pk).update(view_count=F('view_count') + 1)
+        return response
 
 
 @extend_schema(request=SearchAllSerializer)
@@ -463,8 +480,10 @@ def get_video_playlist(request, file_uuid):
 
     if movie:
         request.user.watch_history.movies.add(movie)
+        Movie.objects.filter(id=movie.id).update(view_count=F('view_count') + 1)
     if series:
         request.user.watch_history.series.add(series)
+        Series.objects.filter(id=series.id).update(view_count=F('view_count') + 1)
 
     if False and movie and movie.is_premium and movie not in \
             request.user.premium_collection.movies:
