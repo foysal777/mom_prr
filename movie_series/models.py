@@ -138,6 +138,14 @@ class Movie(TimeStamped):
     def __str__(self):
         return self.title
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.poster_url:
+            poster_url_str = self.poster_url.url
+            if self.posters_url != [poster_url_str]:
+                self.posters_url = [poster_url_str]
+                super().save(update_fields=['posters_url'])
+
     @property
     def likes(self):
         return len(self.like_set.all())
@@ -179,6 +187,7 @@ class Series(TimeStamped):
     )
 
     is_popular = models.BooleanField(default=False)
+    poster_url = models.ImageField(null=True, blank=True, upload_to=get_upload_to)
     posters_url = models.JSONField(default=list, blank=True)
     view_count = models.PositiveIntegerField(default=0)
 
@@ -191,6 +200,14 @@ class Series(TimeStamped):
         pass
 
     def __str__(self): return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.poster_url:
+            poster_url_str = self.poster_url.url
+            if self.posters_url != [poster_url_str]:
+                self.posters_url = [poster_url_str]
+                super().save(update_fields=['posters_url'])
 
     @property
     def likes(self):

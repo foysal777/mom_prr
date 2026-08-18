@@ -27,6 +27,7 @@ class MovieSerializer(serializers.ModelSerializer):
 
     is_notify = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
+    posters_url = serializers.SerializerMethodField()
     class Meta:
         model = Movie
         fields = (
@@ -39,6 +40,15 @@ class MovieSerializer(serializers.ModelSerializer):
             "is_notify", "view_count"
         )
         read_only_fields = fields  # entire serializer is read-only
+
+    def get_posters_url(self, instance):
+        if instance.poster_url:
+            request = self.context.get('request')
+            url = instance.poster_url.url
+            if request is not None:
+                url = request.build_absolute_uri(url)
+            return [url]
+        return instance.posters_url or []
 
     def get_title(self, instance):
         if hasattr(instance, 'user_lang'):
@@ -104,6 +114,7 @@ class MovieDetailSerializer(serializers.ModelSerializer):
     dislikes = serializers.SerializerMethodField()
     liked = serializers.SerializerMethodField()
     disliked = serializers.SerializerMethodField()
+    posters_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Movie
@@ -117,6 +128,15 @@ class MovieDetailSerializer(serializers.ModelSerializer):
             "liked", "disliked", "trailer", "view_count"
         )
         read_only_fields = fields  # entire serializer is read-only
+
+    def get_posters_url(self, instance):
+        if instance.poster_url:
+            request = self.context.get('request')
+            url = instance.poster_url.url
+            if request is not None:
+                url = request.build_absolute_uri(url)
+            return [url]
+        return instance.posters_url or []
 
     def get_title(self, instance):
         if hasattr(instance, 'user_lang'):
@@ -242,7 +262,13 @@ class SeasonSerializer(serializers.ModelSerializer):
         return ""
 
     def get_posters_url(self, instance):
-        return instance.series.posters_url
+        if instance.series.poster_url:
+            request = self.context.get('request')
+            url = instance.series.poster_url.url
+            if request is not None:
+                url = request.build_absolute_uri(url)
+            return [url]
+        return instance.series.posters_url or []
 
     def get_is_notify(self, instance):
         if hasattr(instance, 'is_notify') and instance.is_notify:
@@ -262,18 +288,28 @@ class SeriesSerializer(serializers.ModelSerializer):
     liked = serializers.SerializerMethodField()
     disliked = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
+    posters_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Series
         fields = (
             "id", "name", "genres", "created_at", "is_premium",
-            "updated_at", "is_collection", "posters_url",
+            "updated_at", "is_collection", "posters_url", "poster_url",
             "premium_price_usd", "premium_price_gourde",
             "description", "alias_type",
             "likes", "dislikes", "liked", "disliked",
             "view_count"
         )
         read_only_fields = fields
+
+    def get_posters_url(self, instance):
+        if instance.poster_url:
+            request = self.context.get('request')
+            url = instance.poster_url.url
+            if request is not None:
+                url = request.build_absolute_uri(url)
+            return [url]
+        return instance.posters_url or []
 
     def get_name(self, instance):
         if hasattr(instance, 'user_lang'):
@@ -305,7 +341,9 @@ class SeriesSerializer(serializers.ModelSerializer):
             return False
 
     def get_is_premium(self, instance):
-        return instance.is_premium
+        if hasattr(instance, 'is_premium'):
+            return instance.is_premium
+        return bool(instance.premium_price_usd > 0 or instance.premium_price_gourde > 0)
 
     def get_alias_type(self, instance):
         return 'series'
@@ -388,19 +426,29 @@ class SeriesFullSerializer(serializers.ModelSerializer):
     dislikes = serializers.SerializerMethodField()
     liked = serializers.SerializerMethodField()
     disliked = serializers.SerializerMethodField()
+    posters_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Series
         fields = (
             "id", "name", "genres", "created_at",
             "is_premium", "updated_at", "is_collection",
-            "posters_url", "premium_price_usd",
+            "posters_url", "poster_url", "premium_price_usd",
             "premium_price_gourde", "description",
             'seasons', 'alias_type', "related_series",
             'likes', 'dislikes', 'liked', 'disliked',
             "view_count"
         )
         read_only_fields = fields
+
+    def get_posters_url(self, instance):
+        if instance.poster_url:
+            request = self.context.get('request')
+            url = instance.poster_url.url
+            if request is not None:
+                url = request.build_absolute_uri(url)
+            return [url]
+        return instance.posters_url or []
 
     def get_name(self, instance):
         if hasattr(instance, 'user_lang'):
@@ -445,7 +493,9 @@ class SeriesFullSerializer(serializers.ModelSerializer):
             return None
 
     def get_is_premium(self, instance):
-        return instance.is_premium
+        if hasattr(instance, 'is_premium'):
+            return instance.is_premium
+        return bool(instance.premium_price_usd > 0 or instance.premium_price_gourde > 0)
 
     def get_alias_type(self, instance):
         return 'series'

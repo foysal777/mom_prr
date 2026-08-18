@@ -2,7 +2,7 @@ from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
 from django.contrib.admin.sites import AdminSite
 from rest_framework.test import APIClient
-from movie_series.models import Movie, Series
+from movie_series.models import Movie, Series, Season
 from movie_series.admin import MovieAdmin, SeriesAdmin
 
 UserModel = get_user_model()
@@ -120,10 +120,20 @@ class MoviePosterFieldTests(TestCase):
         self.site = AdminSite()
         self.movie = Movie.objects.create(
             title="Poster Test Movie",
+            posters_url=["https://example.com/original_vdo_poster.jpg"],
+            publish=True
+        )
+        self.series = Series.objects.create(
+            name="Poster Test Series",
+            posters_url=["https://example.com/original_series_poster.jpg"]
+        )
+        self.season = Season.objects.create(
+            series=self.series,
+            season_name="1",
             publish=True
         )
 
-    def test_movie_poster_url_upload_and_preview(self):
+    def test_movie_poster_url_upload_and_override_posters_url(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
         from movie_series.serializers import MovieSerializer, MovieDetailSerializer
 
@@ -146,34 +156,87 @@ class MoviePosterFieldTests(TestCase):
         self.assertTrue(bool(self.movie.poster_url))
         self.assertIn('test_poster', self.movie.poster_url.name)
 
+        # Verify DB posters_url was overridden with the uploaded poster URL
+        self.assertEqual(self.movie.posters_url, [self.movie.poster_url.url])
+
         # Test MovieAdmin poster_preview
         movie_admin = MovieAdmin(Movie, self.site)
         preview_html = movie_admin.poster_preview(self.movie)
         self.assertIn('<img src="', preview_html)
         self.assertIn(self.movie.poster_url.url, preview_html)
 
-        # Test serializer output includes poster_url
+        # Test serializer output overrides posters_url with uploaded poster URL
         serializer_data = MovieSerializer(self.movie).data
         self.assertIn('poster_url', serializer_data)
         self.assertIsNotNone(serializer_data['poster_url'])
+        self.assertEqual(serializer_data['posters_url'], [self.movie.poster_url.url])
 
         detail_serializer_data = MovieDetailSerializer(self.movie).data
         self.assertIn('poster_url', detail_serializer_data)
         self.assertIsNotNone(detail_serializer_data['poster_url'])
+        self.assertEqual(detail_serializer_data['posters_url'], [self.movie.poster_url.url])
 
         # Clean up file
         if self.movie.poster_url:
             self.movie.poster_url.delete(save=False)
 
+    def test_series_and_season_poster_url_upload_and_override(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from movie_series.serializers import SeriesSerializer, SeriesFullSerializer, SeasonSerializer
+        from movie_series.admin import SeriesAdmin
+
+        image_content = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+            b'\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01'
+            b'\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        uploaded_image = SimpleUploadedFile(
+            name='test_series_poster.png',
+            content=image_content,
+            content_type='image/png'
+        )
+
+        self.series.poster_url = uploaded_image
+        self.series.save()
+        self.series.refresh_from_db()
+
+        self.assertTrue(bool(self.series.poster_url))
+        self.assertIn('test_series_poster', self.series.poster_url.name)
+
+        # Verify DB posters_url was overridden with the uploaded poster URL
+        self.assertEqual(self.series.posters_url, [self.series.poster_url.url])
+
+        # Test SeriesAdmin poster_preview
+        series_admin = SeriesAdmin(Series, self.site)
+        preview_html = series_admin.poster_preview(self.series)
+        self.assertIn('<img src="', preview_html)
+        self.assertIn(self.series.poster_url.url, preview_html)
+
+        # Test SeriesSerializer and SeriesFullSerializer output
+        serializer_data = SeriesSerializer(self.series).data
+        self.assertEqual(serializer_data['posters_url'], [self.series.poster_url.url])
+
+        full_serializer_data = SeriesFullSerializer(self.series).data
+        self.assertEqual(full_serializer_data['posters_url'], [self.series.poster_url.url])
+
+        # Test SeasonSerializer output overrides posters_url from series
+        season_data = SeasonSerializer(self.season).data
+        self.assertEqual(season_data['posters_url'], [self.series.poster_url.url])
+
+        # Clean up file
+        if self.series.poster_url:
+            self.series.poster_url.delete(save=False)
+
     def test_movie_poster_preview_fallback_to_posters_url(self):
         movie_admin = MovieAdmin(Movie, self.site)
+        movie_no_poster = Movie.objects.create(title="No Poster Movie", publish=True)
 
         # When no poster_url and no posters_url
-        self.assertEqual(movie_admin.poster_preview(self.movie), "-")
+        self.assertEqual(movie_admin.poster_preview(movie_no_poster), "-")
 
         # When posters_url has external URLs
-        self.movie.posters_url = ["https://example.com/poster1.jpg"]
-        self.movie.save()
-        preview_html = movie_admin.poster_preview(self.movie)
+        movie_no_poster.posters_url = ["https://example.com/poster1.jpg"]
+        movie_no_poster.save()
+        preview_html = movie_admin.poster_preview(movie_no_poster)
         self.assertIn('https://example.com/poster1.jpg', preview_html)
 

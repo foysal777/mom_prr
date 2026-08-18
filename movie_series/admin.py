@@ -132,6 +132,7 @@ class SeasonInline(admin.TabularInline):
 class SeriesAdmin(admin.ModelAdmin):
     list_display = [
         'name',
+        'poster_preview',
         'display_genres',
         'seasons_count',
         'premium_price_usd',
@@ -164,6 +165,14 @@ class SeriesAdmin(admin.ModelAdmin):
         return qs.annotate(
             annotated_user_views=Count('watchhistory', distinct=True)
         )
+
+    @admin.display(description='Poster')
+    def poster_preview(self, obj):
+        if obj.poster_url:
+            return format_html('<img src="{}" style="max-height: 50px; max-width: 50px; object-fit: cover; border-radius: 4px;" />', obj.poster_url.url)
+        elif obj.posters_url and len(obj.posters_url) > 0:
+            return format_html('<img src="{}" style="max-height: 50px; max-width: 50px; object-fit: cover; border-radius: 4px;" />', obj.posters_url[0])
+        return "-"
 
     @admin.display(description='Genres')
     def display_genres(self, obj):
