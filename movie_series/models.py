@@ -13,7 +13,8 @@ UserModel = get_user_model()
 
 
 def get_upload_to(instance, filename):
-    return os.path.join('uploads', f"{instance.id}_{filename}")
+    prefix = instance.id if instance.id is not None else 'upload'
+    return os.path.join('uploads', f"{prefix}_{filename}")
 
 
 class TimeStamped(models.Model):
@@ -108,6 +109,7 @@ class Movie(TimeStamped):
     preview_gif = models.FileField(null=True, blank=True)
     trailer = models.FileField(null=True, blank=True, upload_to=get_upload_to)
 
+    poster_url = models.ImageField(null=True, blank=True, upload_to=get_upload_to)
     posters_url = models.JSONField(default=list, blank=True)
     is_popular = models.BooleanField(default=False)
     premium_price_usd = models.DecimalField(

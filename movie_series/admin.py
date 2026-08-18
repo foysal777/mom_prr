@@ -39,6 +39,7 @@ class GenreAdmin(admin.ModelAdmin):
 class MovieAdmin(admin.ModelAdmin):
     list_display = [
         'title',
+        'poster_preview',
         'release_year',
         'display_genres',
         'runtime_minutes',
@@ -98,6 +99,14 @@ class MovieAdmin(admin.ModelAdmin):
     @admin.display(description='Genres')
     def display_genres(self, obj):
         return ", ".join([g.name for g in obj.genres.all()[:3]]) or "-"
+
+    @admin.display(description='Poster')
+    def poster_preview(self, obj):
+        if obj.poster_url:
+            return format_html('<img src="{}" style="max-height: 50px; max-width: 50px; object-fit: cover; border-radius: 4px;" />', obj.poster_url.url)
+        elif obj.posters_url and len(obj.posters_url) > 0:
+            return format_html('<img src="{}" style="max-height: 50px; max-width: 50px; object-fit: cover; border-radius: 4px;" />', obj.posters_url[0])
+        return "-"
 
     @admin.display(description='User Views', ordering='annotated_user_views')
     def user_views_count(self, obj):

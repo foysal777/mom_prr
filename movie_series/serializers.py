@@ -31,7 +31,7 @@ class MovieSerializer(serializers.ModelSerializer):
         model = Movie
         fields = (
             "id", "title", "release_year", "runtime_minutes",
-            "genres", "is_collection", "posters_url",
+            "genres", "is_collection", "posters_url", "poster_url",
             "is_premium", "premium_price_usd",
             "premium_price_gourde", "description",
             "alias_type", 'file_uuid', "comming_soon_time",
@@ -64,7 +64,9 @@ class MovieSerializer(serializers.ModelSerializer):
             return False
 
     def get_is_premium(self, instance):
-        return instance.is_premium
+        if hasattr(instance, 'is_premium'):
+            return instance.is_premium
+        return bool(instance.premium_price_usd > 0 or instance.premium_price_gourde > 0)
 
     def get_alias_type(self, instance):
         return 'movie'
@@ -107,7 +109,7 @@ class MovieDetailSerializer(serializers.ModelSerializer):
         model = Movie
         fields = (
             "id", "title", "release_year", "runtime_minutes",
-            "genres", "is_collection", "posters_url",
+            "genres", "is_collection", "posters_url", "poster_url",
             "is_premium", "premium_price_usd",
             "premium_price_gourde", "description",
             "alias_type", 'file_uuid', 'related_movies',
@@ -163,7 +165,9 @@ class MovieDetailSerializer(serializers.ModelSerializer):
             return None
 
     def get_is_premium(self, instance):
-        return instance.is_premium
+        if hasattr(instance, 'is_premium'):
+            return instance.is_premium
+        return bool(instance.premium_price_usd > 0 or instance.premium_price_gourde > 0)
 
     def get_alias_type(self, instance):
         return 'movie'
