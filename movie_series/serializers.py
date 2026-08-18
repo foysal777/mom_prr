@@ -115,17 +115,22 @@ class MovieDetailSerializer(serializers.ModelSerializer):
     liked = serializers.SerializerMethodField()
     disliked = serializers.SerializerMethodField()
     posters_url = serializers.SerializerMethodField()
+    is_notify = serializers.SerializerMethodField()
 
     class Meta:
         model = Movie
         fields = (
-            "id", "title", "release_year", "runtime_minutes",
-            "genres", "is_collection", "posters_url", "poster_url",
-            "is_premium", "premium_price_usd",
-            "premium_price_gourde", "description",
-            "alias_type", 'file_uuid', 'related_movies',
-            "comming_soon_time", "likes", "dislikes",
-            "liked", "disliked", "trailer", "view_count"
+            "id", "title", "title_fr", "title_es",
+            "description", "description_fr", "description_es",
+            "release_year", "runtime_minutes", "comming_soon_time",
+            "genres", "file_uuid", "preview_gif", "trailer",
+            "poster_url", "posters_url", "is_popular",
+            "premium_price_usd", "premium_price_gourde",
+            "view_count", "publish", "notifyees", "is_notify",
+            "created_at", "updated_at",
+            "is_collection", "is_premium", "alias_type",
+            "related_movies", "likes", "dislikes",
+            "liked", "disliked"
         )
         read_only_fields = fields  # entire serializer is read-only
 
@@ -167,6 +172,11 @@ class MovieDetailSerializer(serializers.ModelSerializer):
     def get_disliked(self, instance):
         if hasattr(instance, 'disliked'):
             return instance.disliked
+        return False
+
+    def get_is_notify(self, instance):
+        if hasattr(instance, 'is_notify') and instance.is_notify:
+            return True
         return False
 
     def get_related_movies(self, instance):

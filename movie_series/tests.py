@@ -89,6 +89,28 @@ class ViewCountMeasureTests(TestCase):
         self.assertEqual(self.movie.view_count, 2)
         self.assertTrue(self.user2.watch_history.movies.filter(id=self.movie.id).exists())
 
+    def test_movie_detail_view_contains_all_model_fields(self):
+        self.client.force_authenticate(user=self.user1)
+        url = f"/movie_and_series/movie/{self.movie.id}/detail/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        expected_fields = [
+            "id", "title", "title_fr", "title_es",
+            "description", "description_fr", "description_es",
+            "release_year", "runtime_minutes", "comming_soon_time",
+            "genres", "file_uuid", "preview_gif", "trailer",
+            "poster_url", "posters_url", "is_popular",
+            "premium_price_usd", "premium_price_gourde",
+            "view_count", "publish", "notifyees", "is_notify",
+            "created_at", "updated_at",
+            "is_collection", "is_premium", "alias_type",
+            "related_movies", "likes", "dislikes",
+            "liked", "disliked"
+        ]
+        for field in expected_fields:
+            self.assertIn(field, response.data, f"Field '{field}' missing from movie detail response")
+
     def test_series_detail_view_increments_per_user_only_once(self):
         self.client.force_authenticate(user=self.user1)
         url = f"/movie_and_series/series/{self.series.id}/detail/"
