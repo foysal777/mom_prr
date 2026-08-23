@@ -70,3 +70,49 @@ class CustomUserAdminViewCountTests(APITestCase):
 
         summary = user_admin.user_watch_summary(self.user)
         self.assertIn("2 Movies watched, 1 Series watched (Total: 3 views)", summary)
+
+
+from unittest.mock import patch
+from accounts.models import SiteConfig, ScholarshipApplicant
+
+class ScholarshipApplicantVerificationTests(APITestCase):
+    def setUp(self):
+        self.user1 = CustomUser.objects.create_user(email="user1@example.com", password="password123", username="user1")
+        self.user2 = CustomUser.objects.create_user(email="user2@example.com", password="password123", username="user2")
+        self.user3 = CustomUser.objects.create_user(email="user3@example.com", password="password123", username="user3")
+
+    @patch("accounts.signals.send_mail")
+    def test_admin_check_true_sends_email_to_all_users(self, mock_send_mail):
+        site_config, _ = SiteConfig.objects.get_or_create(id=1, defaults={"admin_check": True})
+        site_config.admin_check = True
+        site_config.save()
+
+        applicant = ScholarshipApplicant.objects.create(user=self.user1, admin_verified=False)
+        applicant.admin_verified = True
+        applicant.save()
+
+        # Check mock_send_mail call
+        self.assertTrue(mock_send_mail.called)
+        kwargs = mock_send_mail.call_args[1] if mock_send_mail.call_args[1] else mock_send_mail.call_args.kwargs
+        recipients = kwargs.get("recipient_list", [])
+        self.assertIn("user1@example.com", recipients)
+        self.assertIn("user2@example.com", recipients)
+        self.assertIn("user3@example.com", recipients)
+        self.assertEqual(len(recipients), 3)
+
+    @patch("accounts.signals.send_mail")
+    def test_admin_check_false_sends_email_only_to_single_applicant(self, mock_send_mail):
+        site_config, _ = SiteConfig.objects.get_or_create(id=1, defaults={"admin_check": False})
+        site_config.admin_check = False
+        site_config.save()
+
+        applicant = ScholarshipApplicant.objects.create(user=self.user1, admin_verified=False)
+        applicant.admin_verified = True
+        applicant.save()
+
+        # Check mock_send_mail call
+        self.assertTrue(mock_send_mail.called)
+        kwargs = mock_send_mail.call_args[1] if mock_send_mail.call_args[1] else mock_send_mail.call_args.kwargs
+        recipients = kwargs.get("recipient_list", [])
+        self.assertEqual(recipients, ["user1@example.com"])
+

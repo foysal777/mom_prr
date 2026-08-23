@@ -6,7 +6,7 @@ from threading import Thread
 from django.core.mail import EmailMessage, send_mail
 
 
-from .models import HelpSupport, SiteConfig
+from .models import HelpSupport, SiteConfig, ScholarshipApplicant
 
 
 UserModel = get_user_model()
@@ -36,3 +36,33 @@ def handle_site_config_update(
     sender, instance, created, **kwargs
 ):
     settings.SITE_CONFIG = instance
+
+
+@receiver(post_save, sender=ScholarshipApplicant)
+def handle_scholarship_verification(
+    sender, instance, created, **kwargs
+):
+    if instance.admin_verified:
+        site_config = SiteConfig.objects.first()
+        admin_check = site_config.admin_check if site_config else True
+
+        if admin_check:
+            recipient_list = list(
+                UserModel.objects.filter(is_active=True).values_list('email', flat=True)
+            )
+        else:
+            recipient_list = [instance.user.email] if instance.user and instance.user.email else []
+
+        if recipient_list:
+            subject = "Scholarship Verification Notification"
+            message = f"Scholarship applicant verification update for user {instance.user.email}."
+            Thread(
+                target=send_mail,
+                kwargs={
+                    "subject": subject,
+                    "message": message,
+                    "from_email": settings.EMAIL_HOST_USER,
+                    "recipient_list": recipient_list,
+                    "fail_silently": True,
+                }
+            ).start()

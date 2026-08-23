@@ -4,7 +4,7 @@ from django.db.models import Count
 from django.shortcuts import redirect, reverse
 from django.utils.translation import gettext_lazy as _
 
-from .models import CustomUser, SiteConfig, HelpSupport
+from .models import CustomUser, SiteConfig, HelpSupport, ScholarshipApplicant
 
 
 @admin.register(CustomUser)
@@ -129,6 +129,7 @@ class CustomUserAdmin(UserAdmin):
 class SiteConfigAdmin(admin.ModelAdmin):
     list_display = [
         'id',
+        'admin_check',
         'subscription_price_id',
         'moncash_subscription_price',
         'yearly_subscription_price_id',
@@ -149,6 +150,29 @@ class SiteConfigAdmin(admin.ModelAdmin):
         app_label = SiteConfig._meta.app_label
         model_name = SiteConfig._meta.model_name
         return redirect(reverse(f'admin:{app_label}_{model_name}_add'))
+
+
+@admin.register(ScholarshipApplicant)
+class ScholarshipApplicantAdmin(admin.ModelAdmin):
+    list_display = [
+        'id',
+        'user',
+        'admin_verified',
+        'created_at',
+        'updated_at'
+    ]
+    list_filter = [
+        'admin_verified',
+        'created_at'
+    ]
+    search_fields = [
+        'user__email',
+        'user__full_name',
+        'application_details'
+    ]
+    list_editable = [
+        'admin_verified'
+    ]
 
 
 @admin.register(HelpSupport)

@@ -126,6 +126,11 @@ class SiteConfig(models.Model):
         validators=[MinValueValidator(Decimal('0.01'))]
     )
     privacy_policy = models.TextField(default="", blank=True)
+    admin_check = models.BooleanField(
+        default=True,
+        verbose_name="Admin Check",
+        help_text="If True, verifying a scholarship applicant sends email to all users. If False, email is sent only to the applicant."
+    )
 
     def clean(self):
         super().clean()
@@ -142,6 +147,25 @@ class SiteConfig(models.Model):
 
     def __str__(self):
         return f"Site Configuration ({self.pk})"
+
+
+class ScholarshipApplicant(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="scholarship_applications"
+    )
+    application_details = models.TextField(blank=True, default="")
+    admin_verified = models.BooleanField(
+        default=False,
+        verbose_name="Admin Verified",
+        help_text="Designates whether this applicant has been verified by admin."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Scholarship Applicant: {self.user.email} (Verified: {self.admin_verified})"
 
 
 class HelpSupport(models.Model):
